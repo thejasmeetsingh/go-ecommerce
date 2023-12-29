@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         microservices:
-          - users
+          - /src/user_service
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
