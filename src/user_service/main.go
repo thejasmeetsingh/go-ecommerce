@@ -12,7 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/handlers"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
-	middlewares "github.com/thejasmeetsingh/go-ecommerce/src/user_service/middleware"
 )
 
 func loadRoutes(engine *gin.Engine, apiCfg *handlers.ApiConfig) {
@@ -25,7 +24,7 @@ func loadRoutes(engine *gin.Engine, apiCfg *handlers.ApiConfig) {
 
 	router := engine.Group("/api/v1/")
 	authRouter := router.Group("")
-	authRouter.Use(middlewares.JWTAuth(apiCfg))
+	authRouter.Use(JWTAuth(apiCfg))
 
 	// Non auth routes
 	router.POST("register/", apiCfg.Singup)

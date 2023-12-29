@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
-	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/models"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/utils"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/validators"
 )
@@ -39,8 +38,7 @@ func (apiCfg *ApiConfig) GetUserProfile(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"data": models.DatabaseUserToUser(dbUser)})
+	c.JSON(http.StatusOK, gin.H{"data": DatabaseUserToUser(dbUser)})
 }
 
 // Update user profile details
@@ -116,7 +114,7 @@ func (apiCfg *ApiConfig) UpdateUserProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile details updated successfully!", "data": models.DatabaseUserToUser(user)})
+	c.JSON(http.StatusOK, gin.H{"message": "Profile details updated successfully!", "data": DatabaseUserToUser(user)})
 }
 
 // Delete user profile
