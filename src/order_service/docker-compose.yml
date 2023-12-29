@@ -22,7 +22,7 @@ services:
     container_name: order_service
     command: sh -c "go install && order_service"
     volumes:
-      - .:/code
+      - .:/go/src/app
     ports:
       - 8003:8000
     depends_on:

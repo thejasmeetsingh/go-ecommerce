@@ -20,9 +20,9 @@ services:
     build: .
     restart: on-failure
     container_name: user_service
-    command: sh -c "go install && user_service"
+    command: sh -c "goose -dir ./sql/schema/ postgres $DB_URL up && go install && user_service"
     volumes:
-      - .:/code
+      - .:/go/src/app
     ports:
       - 8001:8000
     depends_on:
@@ -33,6 +33,8 @@ services:
       - CGO_ENABLED=1
       - PORT=8000
       - GIN_MODE=debug
+      - ACCESS_TOKEN_EXP=7
+      - REFRESH_TOKEN_EXP=14
 
 volumes:
   users-db:
