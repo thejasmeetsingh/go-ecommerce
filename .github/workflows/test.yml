@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         microservices:
-          - /src/user_service
+          - user_service
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -23,5 +23,7 @@ jobs:
 
       - name: Execute Test Cases
         run: |
-          cd ${{ matrix.microservices }}
+          ls
+          echo ${{ matrix.microservices }}
+          cd ./src/${{ matrix.microservices }}
           bash run_unit_test.sh
