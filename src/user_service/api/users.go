@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"database/sql"
@@ -32,7 +32,7 @@ func getDBUser(c *gin.Context) (database.User, error) {
 }
 
 // Fetch user profile details
-func (apiCfg *ApiConfig) GetUserProfile(c *gin.Context) {
+func (apiCfg *APIConfig) GetUserProfile(c *gin.Context) {
 	dbUser, err := getDBUser(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
@@ -42,7 +42,7 @@ func (apiCfg *ApiConfig) GetUserProfile(c *gin.Context) {
 }
 
 // Update user profile details
-func (apiCfg *ApiConfig) UpdateUserProfile(c *gin.Context) {
+func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 	dbUser, err := getDBUser(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
@@ -118,7 +118,7 @@ func (apiCfg *ApiConfig) UpdateUserProfile(c *gin.Context) {
 }
 
 // Delete user profile
-func (apiCfg *ApiConfig) DeleteUserProfile(c *gin.Context) {
+func (apiCfg *APIConfig) DeleteUserProfile(c *gin.Context) {
 	dbUser, err := getDBUser(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
@@ -135,7 +135,7 @@ func (apiCfg *ApiConfig) DeleteUserProfile(c *gin.Context) {
 }
 
 // Change password API for authenticated user
-func (apiCfg *ApiConfig) ChangePassword(c *gin.Context) {
+func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	dbUser, err := getDBUser(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"net/http"
@@ -7,14 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/handlers"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/utils"
 )
 
 // Validate the request by checking wheather or not they have the valid JWT access token or not
 //
 // Token format: Bearer <TOKEN>
-func JWTAuth(apiCfg *handlers.ApiConfig) gin.HandlerFunc {
+func JWTAuth(apiCfg *APIConfig) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		headerAuthToken := ctx.GetHeader("Authorization")
 

@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"net/http"
@@ -14,7 +14,7 @@ import (
 )
 
 // SignUp API
-func (apiCfg *ApiConfig) Singup(c *gin.Context) {
+func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	type Parameters struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
@@ -59,7 +59,7 @@ func (apiCfg *ApiConfig) Singup(c *gin.Context) {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
 	if err != nil {
-		log.Errorln(err)
+		log.Fatal(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -91,13 +91,18 @@ func (apiCfg *ApiConfig) Singup(c *gin.Context) {
 	}
 
 	// Commit the transaction
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Account created successfully!", "data": tokens})
 }
 
 // Login API
-func (apiCfg *ApiConfig) Login(c *gin.Context) {
+func (apiCfg *APIConfig) Login(c *gin.Context) {
 	type Parameters struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
@@ -144,7 +149,7 @@ func (apiCfg *ApiConfig) Login(c *gin.Context) {
 // Refresh Token API
 //
 // Generate new tokens if the given refresh token is valid
-func (apiCfg *ApiConfig) RefreshAccessToken(c *gin.Context) {
+func (apiCfg *APIConfig) RefreshAccessToken(c *gin.Context) {
 	type Parameters struct {
 		RefreshToken string `json:"refresh_token"`
 	}

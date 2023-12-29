@@ -2,7 +2,7 @@
 //
 // With keys as formatted as snake_case rather than TitleCase
 
-package handlers
+package api
 
 import (
 	"github.com/google/uuid"
