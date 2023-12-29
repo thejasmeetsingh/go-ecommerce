@@ -33,6 +33,8 @@ services:
       - CGO_ENABLED=1
       - PORT=8000
       - GIN_MODE=debug
+      - ACCESS_TOKEN_EXP=7
+      - REFRESH_TOKEN_EXP=14
 
 volumes:
   users-db:

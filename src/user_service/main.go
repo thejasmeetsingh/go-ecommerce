@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/handlers"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
+	middlewares "github.com/thejasmeetsingh/go-ecommerce/src/user_service/middleware"
 )
 
 func loadRoutes(engine *gin.Engine, apiCfg *handlers.ApiConfig) {
@@ -23,9 +24,19 @@ func loadRoutes(engine *gin.Engine, apiCfg *handlers.ApiConfig) {
 	})
 
 	router := engine.Group("/api/v1/")
+	authRouter := router.Group("")
+	authRouter.Use(middlewares.JWTAuth(apiCfg))
+
+	// Non auth routes
 	router.POST("register/", apiCfg.Singup)
 	router.POST("login/", apiCfg.Login)
 	router.POST("refresh-token/", apiCfg.RefreshAccessToken)
+
+	// Auth routes
+	authRouter.GET("profile/", apiCfg.GetUserProfile)
+	authRouter.PATCH("profile/", apiCfg.UpdateUserProfile)
+	authRouter.DELETE("profile/", apiCfg.DeleteUserProfile)
+	authRouter.PUT("change-password/", apiCfg.ChangePassword)
 }
 
 func getDBConn(dbURL string) *database.Queries {
