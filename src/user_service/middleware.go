@@ -58,7 +58,7 @@ func JWTAuth(apiCfg *handlers.ApiConfig) gin.HandlerFunc {
 		}
 
 		// Fetch the user by the ID
-		dbUser, err := apiCfg.DB.GetUserById(ctx, userID)
+		dbUser, err := apiCfg.Queries.GetUserById(ctx, userID)
 		if err != nil {
 			ctx.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
 			ctx.Abort()

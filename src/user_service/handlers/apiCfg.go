@@ -1,7 +1,12 @@
 package handlers
 
-import "github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
+import (
+	"database/sql"
+
+	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
+)
 
 type ApiConfig struct {
-	DB *database.Queries
+	DB      *sql.DB
+	Queries *database.Queries
 }

@@ -89,7 +89,7 @@ func (apiCfg *ApiConfig) UpdateUserProfile(c *gin.Context) {
 
 	// Check if user any exists with the new email address
 	if isEmailChanged && email != dbUser.Email {
-		_, err = apiCfg.DB.GetUserByEmail(c, email)
+		_, err = apiCfg.Queries.GetUserByEmail(c, email)
 		if err == nil {
 			log.Errorln(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "User with this email address already exists"})
@@ -98,7 +98,7 @@ func (apiCfg *ApiConfig) UpdateUserProfile(c *gin.Context) {
 	}
 
 	// Update the profile details
-	user, err := apiCfg.DB.UpdateUserDetails(c, database.UpdateUserDetailsParams{
+	user, err := apiCfg.Queries.UpdateUserDetails(c, database.UpdateUserDetailsParams{
 		Name: sql.NullString{
 			String: params.Name,
 			Valid:  true,
@@ -125,7 +125,7 @@ func (apiCfg *ApiConfig) DeleteUserProfile(c *gin.Context) {
 		return
 	}
 
-	if err := apiCfg.DB.DeleteUser(c, dbUser.ID); err != nil {
+	if err := apiCfg.Queries.DeleteUser(c, dbUser.ID); err != nil {
 		log.Errorln(err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
 		return
@@ -189,7 +189,7 @@ func (apiCfg *ApiConfig) ChangePassword(c *gin.Context) {
 	}
 
 	// Update the password
-	_, err = apiCfg.DB.UpdateUserPassword(c, database.UpdateUserPasswordParams{
+	_, err = apiCfg.Queries.UpdateUserPassword(c, database.UpdateUserPasswordParams{
 		Password:   hashedPassword,
 		ModifiedAt: time.Now().UTC(),
 		ID:         dbUser.ID,

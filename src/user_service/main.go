@@ -38,14 +38,14 @@ func loadRoutes(engine *gin.Engine, apiCfg *handlers.ApiConfig) {
 	authRouter.PUT("change-password/", apiCfg.ChangePassword)
 }
 
-func getDBConn(dbURL string) *database.Queries {
+func getDBConn(dbURL string) *sql.DB {
 	conn, err := sql.Open("postgres", dbURL)
 
 	if err != nil {
 		panic(fmt.Sprintf("Cannot connect to the database: %v", err))
 	}
 
-	return database.New(conn)
+	return conn
 }
 
 func main() {
@@ -70,9 +70,12 @@ func main() {
 		panic("DB URL is not configured")
 	}
 
-	dbConn := getDBConn(dbURL)
+	conn := getDBConn(dbURL)
+	defer conn.Close()
+
 	apiCfg := handlers.ApiConfig{
-		DB: dbConn,
+		DB:      conn,
+		Queries: database.New(conn),
 	}
 
 	loadRoutes(engine, &apiCfg)

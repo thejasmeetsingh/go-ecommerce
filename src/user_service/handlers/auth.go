@@ -49,15 +49,25 @@ func (apiCfg *ApiConfig) Singup(c *gin.Context) {
 	}
 
 	// Check if user exists with the given email address
-	_, err = apiCfg.DB.GetUserByEmail(c, email)
+	_, err = apiCfg.Queries.GetUserByEmail(c, email)
 	if err == nil {
 		log.Errorln(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "User with this email address already exists"})
 		return
 	}
 
+	// Begin DB transaction
+	tx, err := apiCfg.DB.Begin()
+	if err != nil {
+		log.Errorln(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+	defer tx.Rollback()
+	qtx := apiCfg.Queries.WithTx(tx)
+
 	// Create user account
-	user, err := apiCfg.DB.CreateUser(c, database.CreateUserParams{
+	user, err := qtx.CreateUser(c, database.CreateUserParams{
 		ID:         uuid.New(),
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
@@ -80,6 +90,9 @@ func (apiCfg *ApiConfig) Singup(c *gin.Context) {
 		return
 	}
 
+	// Commit the transaction
+	tx.Commit()
+
 	c.JSON(http.StatusCreated, gin.H{"message": "Account created successfully!", "data": tokens})
 }
 
@@ -100,7 +113,7 @@ func (apiCfg *ApiConfig) Login(c *gin.Context) {
 	}
 
 	// Check wheather the user exists with the given email or not
-	user, err := apiCfg.DB.GetUserByEmail(c, strings.ToLower(params.Email))
+	user, err := apiCfg.Queries.GetUserByEmail(c, strings.ToLower(params.Email))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "User does not exists, Please check your credentials"})
 		return
