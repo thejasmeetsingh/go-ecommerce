@@ -23,7 +23,6 @@ jobs:
 
       - name: Execute Test Cases
         run: |
-          ls
-          echo ${{ matrix.microservices }}
+	  echo "Running Test Case for: "${{ matrix.microservices }}
           cd ./src/${{ matrix.microservices }}
           bash run_unit_test.sh
