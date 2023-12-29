@@ -1,0 +1,38 @@
+version: "3.8"
+services:
+  products-db:
+    container_name: products_db
+    restart: always
+    image: postgres:16.1-alpine3.18
+    volumes:
+      - products-db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=product_db_user
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=product_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d product_db -U product_db_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  product-service:
+    build: .
+    restart: on-failure
+    container_name: product_service
+    command: sh -c "go install && product_service"
+    volumes:
+      - .:/code
+    ports:
+      - 8002:8000
+    depends_on:
+      products-db:
+        condition: service_healthy
+    environment:
+      - DB_URL=postgres://product_db_user:1234@products-db/product_db?sslmode=disable
+      - CGO_ENABLED=1
+      - PORT=8000
+      - GIN_MODE=debug
+
+volumes:
+  products-db:

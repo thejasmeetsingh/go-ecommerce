@@ -8,7 +8,8 @@ RUN mv sqlc bin/
 
 RUN curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | sh
 
-RUN mkdir /code
-WORKDIR /code
+WORKDIR /go/src/app
 
-COPY . /code/
+COPY . .
+
+RUN go get -d -v ./...

@@ -1,0 +1,38 @@
+version: "3.8"
+services:
+  orders-db:
+    container_name: orders_db
+    restart: always
+    image: postgres:16.1-alpine3.18
+    volumes:
+      - orders-db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=order_db_user
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=order_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d order_db -U order_db_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build: .
+    restart: on-failure
+    container_name: order_service
+    command: sh -c "go install && order_service"
+    volumes:
+      - .:/code
+    ports:
+      - 8003:8000
+    depends_on:
+      orders-db:
+        condition: service_healthy
+    environment:
+      - DB_URL=postgres://order_db_user:1234@orders-db/order_db?sslmode=disable
+      - CGO_ENABLED=1
+      - PORT=8000
+      - GIN_MODE=debug
+
+volumes:
+  orders-db:
