@@ -7,11 +7,11 @@ services:
     volumes:
       - users-db:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=user_db_user
-      - POSTGRES_PASSWORD=1234
-      - POSTGRES_DB=user_db
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d user_db -U user_db_user"]
+      test: ["CMD-SHELL", "pg_isready -d $DB_NAME -U $DB_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,13 +28,7 @@ services:
     depends_on:
       users-db:
         condition: service_healthy
-    environment:
-      - DB_URL=postgres://user_db_user:1234@users-db/user_db?sslmode=disable
-      - CGO_ENABLED=1
-      - PORT=8000
-      - GIN_MODE=debug
-      - ACCESS_TOKEN_EXP=7
-      - REFRESH_TOKEN_EXP=14
+    env_file: .env
 
 volumes:
   users-db:
