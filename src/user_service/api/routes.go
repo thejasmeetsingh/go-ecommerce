@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) *gin.RouterGroup {
+func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 	// Default route for health check
 	engine.GET("/health-check/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -14,20 +14,25 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) *gin.RouterGroup {
 		})
 	})
 
-	router := engine.Group("/api/v1/")
-	authRouter := router.Group("")
-	authRouter.Use(JWTAuth((apiCfg)))
+	// Public API Routes
+	pubRouter := engine.Group("/api/v1/")
+	authPubRouter := pubRouter.Group("")
+	authPubRouter.Use(JWTAuth((apiCfg)))
 
 	// Non auth routes
-	router.POST("register/", apiCfg.Singup)
-	router.POST("login/", apiCfg.Login)
-	router.POST("refresh-token/", apiCfg.RefreshAccessToken)
+	pubRouter.POST("register/", apiCfg.Singup)
+	pubRouter.POST("login/", apiCfg.Login)
+	pubRouter.POST("refresh-token/", apiCfg.RefreshAccessToken)
 
 	// Auth routes
-	authRouter.GET("profile/", apiCfg.GetUserProfile)
-	authRouter.PATCH("profile/", apiCfg.UpdateUserProfile)
-	authRouter.DELETE("profile/", apiCfg.DeleteUserProfile)
-	authRouter.PUT("change-password/", apiCfg.ChangePassword)
+	authPubRouter.GET("profile/", apiCfg.GetUserProfile)
+	authPubRouter.PATCH("profile/", apiCfg.UpdateUserProfile)
+	authPubRouter.DELETE("profile/", apiCfg.DeleteUserProfile)
+	authPubRouter.PUT("change-password/", apiCfg.ChangePassword)
 
-	return router
+	// Internal API Routes
+	pvtRouter := engine.Group("/internal/v1/")
+	pvtRouter.Use(InternalAPIAuth(apiCfg))
+
+	pvtRouter.POST("token/", apiCfg.GetUserFromToken)
 }

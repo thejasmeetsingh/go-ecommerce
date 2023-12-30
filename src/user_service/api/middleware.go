@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -67,6 +68,26 @@ func JWTAuth(apiCfg *APIConfig) gin.HandlerFunc {
 		ctx.Set("user", dbUser)
 
 		// Further call the given handler and send the user instance as well
+		ctx.Next()
+	}
+}
+
+// Middleware for checking if a valid API secret is passed or not
+func InternalAPIAuth(apiCfg *APIConfig) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		apiSecret := ctx.GetHeader("Secret")
+		internalAPISecret := os.Getenv("INTERNAL_API_SECRET")
+
+		if internalAPISecret == "" {
+			panic("Internal API secret is not configured")
+		}
+
+		if apiSecret == "" || apiSecret != internalAPISecret {
+			ctx.JSON(http.StatusForbidden, gin.H{"message": "Invalid API Secret"})
+			ctx.Abort()
+			return
+		}
+
 		ctx.Next()
 	}
 }
