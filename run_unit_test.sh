@@ -1,9 +1,11 @@
 #!/bin/bash/
 
-container_name=test_products_db
+container_name=test_db
 db_user=db_user
 db_password=1234
-db_name=products_test_db
+db_name=test
+
+services=("user_service" "product_service")
 
 # Run the testing database container
 docker run --name $container_name \
@@ -30,11 +32,16 @@ done
 
 sleep 30
 
-# Run migrations
-goose -dir sql/schema postgres postgres://$db_user:$db_password@localhost:5432/$db_name up
+for service in ${services[@]};
+do
+    echo "Runnig test for $service service"
 
-# Run test case
-go test ./api/
+    cd src/$service
+    goose -dir sql/schema postgres postgres://$db_user:$db_password@localhost:5432/$db_name up
+    go test ./api/
+
+    echo "---------------------"
+done
 
 # Stop & remove docker container
 docker container stop $container_name
