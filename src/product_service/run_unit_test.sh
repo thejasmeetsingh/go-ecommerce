@@ -1,9 +1,9 @@
 #!/bin/bash/
 
-container_name=test_users_db
+container_name=test_products_db
 db_user=db_user
 db_password=1234
-db_name=users_test_db
+db_name=products_test_db
 
 # Run the testing database container
 docker run --name $container_name \

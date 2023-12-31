@@ -7,32 +7,56 @@ services:
     volumes:
       - products-db:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=product_db_user
-      - POSTGRES_PASSWORD=1234
-      - POSTGRES_DB=product_db
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d product_db -U product_db_user"]
+      test: ["CMD-SHELL", "pg_isready -d $DB_NAME -U $DB_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
-  
+    networks:
+      - internal
+
+  redis-db:
+    container_name: products_cache
+    restart: always
+    image: redis:7.2.3-alpine
+    volumes:
+      - redis-db:/var/lib/redis/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
   product-service:
     build: .
     restart: on-failure
     container_name: product_service
-    command: sh -c "go install && product_service"
+    command: sh -c "goose -dir ./sql/schema/ postgres $DB_URL up && go install && product_service"
     volumes:
       - .:/go/src/app
     ports:
-      - 8002:8000
+      - $PORT:$PORT
     depends_on:
       products-db:
         condition: service_healthy
-    environment:
-      - DB_URL=postgres://product_db_user:1234@products-db/product_db?sslmode=disable
-      - CGO_ENABLED=1
-      - PORT=8000
-      - GIN_MODE=debug
+      redis-db:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - internal
+      - shared-network
 
 volumes:
   products-db:
+  redis-db:
+
+networks:
+  internal:
+    driver: bridge
+  shared-network:
+    external: true
