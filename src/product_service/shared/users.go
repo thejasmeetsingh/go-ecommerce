@@ -51,7 +51,7 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (UserRespo
 
 	clinet := resty.New()
 
-	response := UserResponse{}
+	response := &UserResponse{}
 
 	clinet.R().
 		SetResult(response).
@@ -61,7 +61,7 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (UserRespo
 		SetBody(payload).
 		Post(requestURL)
 
-	return response, nil
+	return *response, nil
 }
 
 // Fetch user ID from cache, Else call the user microserivce to get the user details

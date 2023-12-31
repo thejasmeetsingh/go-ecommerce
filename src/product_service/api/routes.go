@@ -16,7 +16,9 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 
 	router := engine.Group("/api/v1/")
 	router.Use(Auth(apiCfg))
-	router.GET("random/", func(ctx *gin.Context) {
-		ctx.JSON(200, nil)
-	})
+	router.POST("product/", apiCfg.CreateProduct)
+	router.GET("product/:id/", apiCfg.GetProductDetails)
+	router.PATCH("product/:id/", apiCfg.UpdateProductDetails)
+	router.DELETE("product/:id/", apiCfg.DeleteProduct)
+	router.GET("product/", apiCfg.GetProducts)
 }

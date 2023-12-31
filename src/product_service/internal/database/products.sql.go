@@ -51,12 +51,12 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 	return i, err
 }
 
-const deleteUser = `-- name: DeleteUser :exec
+const deleteProduct = `-- name: DeleteProduct :exec
 DELETE FROM products WHERE id=$1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteUser, id)
+func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteProduct, id)
 	return err
 }
 
@@ -77,6 +77,50 @@ func (q *Queries) GetProductById(ctx context.Context, id uuid.UUID) (Product, er
 		&i.Description,
 	)
 	return i, err
+}
+
+const getProducts = `-- name: GetProducts :many
+SELECT id, name, price, description FROM products LIMIT $1 OFFSET $2
+`
+
+type GetProductsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetProductsRow struct {
+	ID          uuid.UUID
+	Name        string
+	Price       int32
+	Description string
+}
+
+func (q *Queries) GetProducts(ctx context.Context, arg GetProductsParams) ([]GetProductsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getProducts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProductsRow
+	for rows.Next() {
+		var i GetProductsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Price,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateProductDetails = `-- name: UpdateProductDetails :one
