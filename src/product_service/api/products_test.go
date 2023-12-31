@@ -3,6 +3,7 @@ package api
 import (
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,7 +13,10 @@ import (
 	"github.com/thejasmeetsingh/go-ecommerce/product_service/internal/database"
 )
 
-var apiCfg *APIConfig
+var (
+	apiCfg    *APIConfig
+	productID uuid.UUID
+)
 
 func TestMain(m *testing.M) {
 	// Connect to testing DB
@@ -34,7 +38,7 @@ func TestCreateProduct(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(w)
 
 	// Create a testing product
-	_, err := CreateProductDB(apiCfg, ctx, database.CreateProductParams{
+	product, err := CreateProductDB(apiCfg, ctx, database.CreateProductParams{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now().UTC(),
 		ModifiedAt:  time.Now().UTC(),
@@ -47,54 +51,45 @@ func TestCreateProduct(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error caught while creating a product: %s", err.Error())
 	}
+
+	productID = product.ID
 }
 
-// func TestConcurrentSingup(t *testing.T) {
-// 	t.Parallel()
+func TestConcurrentProductDeletion(t *testing.T) {
+	t.Parallel()
 
-// 	engine := gin.Default()
-// 	engine.POST("/register/", apiCfg.Singup)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
 
-// 	payload := []byte(`{"email": "john.doe@example1.com", "password": "12345678Uu@"}`)
+	// Counter to track successful product creation
+	var successCounter int
+	var mu sync.Mutex // Mutex to protect the counter
 
-// 	// Counter to track successful signups
-// 	var successCounter int
-// 	var mu sync.Mutex // Mutex to protect the counter
+	var wg sync.WaitGroup
 
-// 	var wg sync.WaitGroup
+	// Number of concurrent signups
+	numGoroutines := 5
 
-// 	// Number of concurrent signups
-// 	numGoroutines := 5
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Delete the product
+			err := DeleteProductDetailDB(apiCfg, ctx, productID)
 
-// 	for i := 0; i < numGoroutines; i++ {
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
+			if err != nil {
+				// Increment the counter if product creation is successful
+				mu.Lock()
+				successCounter++
+				mu.Unlock()
+			}
+		}()
+	}
 
-// 			// Create a request for each Goroutine
-// 			req := httptest.NewRequest(http.MethodPost, "/register/", bytes.NewBuffer(payload))
-// 			req.Header.Set("Content-Type", "application/json")
+	// Wait for all Goroutines to finish
+	wg.Wait()
 
-// 			// Create a ResponseRecorder to capture the response
-// 			rr := httptest.NewRecorder()
-
-// 			// Call the signup handler
-// 			engine.ServeHTTP(rr, req)
-
-// 			// Check the status code for each Goroutine
-// 			if rr.Code == http.StatusOK {
-// 				// Increment the counter if signup is successful
-// 				mu.Lock()
-// 				successCounter++
-// 				mu.Unlock()
-// 			}
-// 		}()
-// 	}
-
-// 	// Wait for all Goroutines to finish
-// 	wg.Wait()
-
-// 	if successCounter > 1 {
-// 		t.Errorf("Expected only one account to be created, but got %d", successCounter)
-// 	}
-// }
+	if successCounter > 1 {
+		t.Errorf("Expected only one product to be deleted, but got %d", successCounter)
+	}
+}
