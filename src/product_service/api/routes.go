@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) *gin.RouterGroup {
+func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 	// Default route for health check
 	engine.GET("/health-check/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -14,5 +14,9 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) *gin.RouterGroup {
 		})
 	})
 
-	return engine.Group("/api/v1/")
+	router := engine.Group("/api/v1/")
+	router.Use(Auth(apiCfg))
+	router.GET("random/", func(ctx *gin.Context) {
+		ctx.JSON(200, nil)
+	})
 }

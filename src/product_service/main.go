@@ -33,12 +33,16 @@ func main() {
 		panic("DB URL is not configured")
 	}
 
-	conn := api.GetDBConn(dbURL)
-	defer conn.Close()
+	dbConn := api.GetDBConn(dbURL)
+	defer dbConn.Close()
+
+	redisClient := api.GetRedisClient()
+	defer redisClient.Close()
 
 	apiCfg := api.APIConfig{
-		DB:      conn,
-		Queries: database.New(conn),
+		DB:      dbConn,
+		Queries: database.New(dbConn),
+		Cache:   redisClient,
 	}
 
 	api.GetRoutes(engine, &apiCfg)

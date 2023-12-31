@@ -15,6 +15,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   user-service:
     build: .
@@ -24,11 +26,20 @@ services:
     volumes:
       - .:/go/src/app
     ports:
-      - 8001:8000
+      - $PORT:$PORT
     depends_on:
       users-db:
         condition: service_healthy
     env_file: .env
+    networks:
+      - internal
+      - shared-network
 
 volumes:
   users-db:
+
+networks:
+  internal:
+    driver: bridge
+  shared-network:
+    external: true
