@@ -1,3 +1,5 @@
+// Contains all product related API handlers
+
 package api
 
 import (
@@ -66,10 +68,12 @@ func (apiCfg *APIConfig) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Product Created Successfully!",
-		"data":    DatabaseProductToProduct(dbProduct),
-	})
+	product := DatabaseProductToProduct(dbProduct)
+
+	// Call goroutine and save product into cache
+	go StoreProductToCache(apiCfg.Cache, c, product)
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Product Created Successfully!", "data": product})
 }
 
 // API for getting details of a specific product by ID
@@ -82,13 +86,27 @@ func (apiCfg *APIConfig) GetProductDetails(c *gin.Context) {
 		return
 	}
 
+	// Retrive product details from cache
+	cachedProduct, err := RetriveProductFromCache(apiCfg.Cache, c, productIDStr)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"data": cachedProduct})
+		return
+	}
+
+	log.Errorln("Error caught while fetching the product details from cache: ", err)
+
 	dbProduct, err := GetProductDetailDB(apiCfg, c, productID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": DatabaseProductToProduct(dbProduct)})
+	product := DatabaseProductToProduct(dbProduct)
+
+	// Call goroutine and save product into cache
+	go StoreProductToCache(apiCfg.Cache, c, product)
+
+	c.JSON(http.StatusOK, gin.H{"data": product})
 }
 
 // API for updating product details
@@ -168,10 +186,12 @@ func (apiCfg *APIConfig) UpdateProductDetails(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Product details updated Successfully!",
-		"data":    DatabaseProductToProduct(dbProduct),
-	})
+	product := DatabaseProductToProduct(dbProduct)
+
+	// Call goroutine and save new product details into cache
+	go StoreProductToCache(apiCfg.Cache, c, product)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Product details updated Successfully!", "data": product})
 }
 
 // API for deleting product details
@@ -210,6 +230,9 @@ func (apiCfg *APIConfig) DeleteProduct(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
+
+	// Call goroutine and delete product details from cache
+	go DeleteProductFromCache(apiCfg.Cache, c, productIDStr)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully!"})
 }

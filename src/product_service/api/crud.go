@@ -1,44 +1,17 @@
+// Contains Product CRUD Queries related function
+
 package api
 
 import (
-	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/product_service/internal/database"
 )
 
-func structToJson(product database.Product) ([]byte, error) {
-	return json.Marshal(product)
-}
-
-func JsonToStruct(data []byte) (database.Product, error) {
-	var product database.Product
-	err := json.Unmarshal(data, &product)
-	if err != nil {
-		return product, err
-	}
-	return product, nil
-}
-
-func retreiveProductFromCache(client *redis.Client, ctx *gin.Context, key string) ([]byte, error) {
-	return client.Get(ctx, key).Bytes()
-}
-
-func storeProductToCache(client *redis.Client, ctx *gin.Context, product database.Product) error {
-	key := product.ID.String()
-	value, err := structToJson(product)
-	if err != nil {
-		return err
-	}
-	return client.Set(ctx, key, value, 1*time.Hour).Err()
-}
-
-// Create product
+// Create product in DB
 func CreateProductDB(apiCfg *APIConfig, ctx *gin.Context, params database.CreateProductParams) (database.Product, error) {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
@@ -49,17 +22,11 @@ func CreateProductDB(apiCfg *APIConfig, ctx *gin.Context, params database.Create
 	defer tx.Rollback()
 	qtx := apiCfg.Queries.WithTx(tx)
 
+	// Create product
 	dbProduct, err := qtx.CreateProduct(ctx, params)
 
 	if err != nil {
 		log.Errorln(err)
-		return database.Product{}, fmt.Errorf("something went wrong")
-	}
-
-	// Store newly product details into cache
-	err = storeProductToCache(apiCfg.Cache, ctx, dbProduct)
-	if err != nil {
-		log.Error(err)
 		return database.Product{}, fmt.Errorf("something went wrong")
 	}
 
@@ -73,7 +40,7 @@ func CreateProductDB(apiCfg *APIConfig, ctx *gin.Context, params database.Create
 	return dbProduct, nil
 }
 
-// Get list of products
+// Get list of products from DB
 func GetProductListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetProductsParams) ([]database.GetProductsRow, error) {
 	products, err := apiCfg.Queries.GetProducts(ctx, params)
 	if err != nil {
@@ -82,29 +49,9 @@ func GetProductListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetPr
 	return products, nil
 }
 
-// Get details of a specific product
+// Get details of a specific product from DB
 func GetProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, productID uuid.UUID) (database.Product, error) {
-	// Find if product is available in cache or not
-	data, err := retreiveProductFromCache(apiCfg.Cache, ctx, productID.String())
-	if err != nil {
-		product, err := apiCfg.Queries.GetProductById(ctx, productID)
-		if err != nil {
-			log.Errorln(err)
-			return database.Product{}, fmt.Errorf("something went wrong")
-		}
-
-		// store the product details into cache
-		err = storeProductToCache(apiCfg.Cache, ctx, product)
-		if err != nil {
-			log.Error(err)
-			return database.Product{}, fmt.Errorf("something went wrong")
-		}
-
-		return product, nil
-	}
-
-	// Convert product JSON to struct
-	product, err := JsonToStruct(data)
+	product, err := apiCfg.Queries.GetProductById(ctx, productID)
 	if err != nil {
 		log.Errorln(err)
 		return database.Product{}, fmt.Errorf("something went wrong")
@@ -113,7 +60,7 @@ func GetProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, productID uuid.UUID
 	return product, nil
 }
 
-// Update product details
+// Update product details in DB
 func UpdateProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.UpdateProductDetailsParams) (database.Product, error) {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
@@ -124,17 +71,11 @@ func UpdateProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.
 	defer tx.Rollback()
 	qtx := apiCfg.Queries.WithTx(tx)
 
+	// Update product
 	product, err := qtx.UpdateProductDetails(ctx, params)
 
 	if err != nil {
 		log.Errorln(err)
-		return database.Product{}, fmt.Errorf("something went wrong")
-	}
-
-	// Store product with latest details to cache
-	err = storeProductToCache(apiCfg.Cache, ctx, product)
-	if err != nil {
-		log.Error(err)
 		return database.Product{}, fmt.Errorf("something went wrong")
 	}
 
@@ -148,7 +89,7 @@ func UpdateProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.
 	return product, nil
 }
 
-// Delete a product
+// Delete product from DB
 func DeleteProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, productID uuid.UUID) error {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
@@ -159,16 +100,11 @@ func DeleteProductDetailDB(apiCfg *APIConfig, ctx *gin.Context, productID uuid.U
 	defer tx.Rollback()
 	qtx := apiCfg.Queries.WithTx(tx)
 
+	// Delete product
 	err = qtx.DeleteProduct(ctx, productID)
 	if err != nil {
 		log.Errorln(err)
 		return fmt.Errorf("something went wrong")
-	}
-
-	// Remove deleted product from the cache if it is preasent
-	err = apiCfg.Cache.Del(ctx, productID.String()).Err()
-	if err != nil {
-		log.Error(err)
 	}
 
 	// Commit the transaction

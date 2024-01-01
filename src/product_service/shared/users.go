@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type UserResponse struct {
+type userResponse struct {
 	Data struct {
 		ID    string `json:"id"`
 		Name  string `json:"name"`
@@ -39,10 +39,10 @@ func getAPISecretKey() (string, error) {
 }
 
 // Call user token API to fetch user details
-func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (UserResponse, error) {
+func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (userResponse, error) {
 	apiSecretKey, err := getAPISecretKey()
 	if err != nil {
-		return UserResponse{}, err
+		return userResponse{}, err
 	}
 
 	userServiceHost := os.Getenv("USER_SERVICE_HOST")
@@ -51,15 +51,19 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (UserRespo
 
 	clinet := resty.New()
 
-	response := &UserResponse{}
+	response := &userResponse{}
 
-	clinet.R().
+	rawResp, err := clinet.R().
 		SetResult(response).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept", "application/json").
 		SetHeader("Secret", apiSecretKey).
 		SetBody(payload).
 		Post(requestURL)
+
+	if rawResp.StatusCode() != http.StatusOK || err != nil {
+		return userResponse{}, fmt.Errorf("error caught while fetching user details API")
+	}
 
 	return *response, nil
 }
