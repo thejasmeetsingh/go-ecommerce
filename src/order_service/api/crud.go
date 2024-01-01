@@ -2,21 +2,19 @@ package api
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/order_service/internal/database"
-	"github.com/thejasmeetsingh/go-ecommerce/order_service/models"
-	"github.com/thejasmeetsingh/go-ecommerce/order_service/shared"
 )
 
-func CreateOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.CreateOrderParams, product models.Product) (models.OrderDetail, error) {
+// Create an order record in DB
+func CreateOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.CreateOrderParams) (database.Order, error) {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
 	if err != nil {
 		log.Fatal("Error caught while initiating the transaction: ", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
+		return database.Order{}, fmt.Errorf("something went wrong")
 	}
 	defer tx.Rollback()
 	qtx := apiCfg.Queries.WithTx(tx)
@@ -26,91 +24,37 @@ func CreateOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.CreateOr
 
 	if err != nil {
 		log.Errorln("Error caught while creating the order in DB", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
-	}
-
-	order := models.DatabaseOrderToOrder(dbOrder, product)
-
-	// Convert the order details to bytes
-	orderByte, err := models.OrderStructToByte(order)
-	if err != nil {
-		log.Errorln("Error caught while converting order struct obj to byte: ", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
-	}
-
-	// Store newly product details into cache
-	err = apiCfg.Cache.Set(ctx, order.ID.String(), orderByte, 1*time.Hour).Err()
-	if err != nil {
-		log.Error("Error caught while saving order details to cache: ", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
+		return database.Order{}, fmt.Errorf("something went wrong")
 	}
 
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
 		log.Fatal("Error caught while committing the transaction; ", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
+		return database.Order{}, fmt.Errorf("something went wrong")
 	}
 
-	return order, nil
+	return dbOrder, nil
 }
 
-func GetOrderListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrdersParams) ([]models.OrderList, error) {
+// Fetch order list from DB
+func GetOrderListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrdersParams) ([]database.GetOrdersRow, error) {
 	dbOrders, err := apiCfg.Queries.GetOrders(ctx, params)
 	if err != nil {
 		log.Error("Error caught while fetching order list: ", err)
-		return []models.OrderList{}, fmt.Errorf("something went wrong")
+		return []database.GetOrdersRow{}, fmt.Errorf("something went wrong")
 	}
-	orders := models.DatabaseOrderToOrderList(dbOrders)
-	return orders, nil
+	return dbOrders, nil
 }
 
-func GetOrderDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrderByIdParams) (models.OrderDetail, error) {
-	orderByte, err := apiCfg.Cache.Get(ctx, params.ID.String()).Bytes()
+// Fetch order details from DB
+func GetOrderDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrderByIdParams) (database.GetOrderByIdRow, error) {
+	dbOrder, err := apiCfg.Queries.GetOrderById(ctx, params)
 	if err != nil {
-		dbOrder, err := apiCfg.Queries.GetOrderById(ctx, params)
-		if err != nil {
-			log.Error("Error caught while fetching order details: ", err)
-			return models.OrderDetail{}, fmt.Errorf("something went wrong")
-		}
-
-		// Fetch product details
-		product, err := shared.GetProductIDToDetails(apiCfg.Cache, ctx, dbOrder.ProductID.String())
-		if err != nil {
-			return models.OrderDetail{}, fmt.Errorf("something went wrong")
-		}
-
-		// Convert the order details to bytes
-		order := models.OrderDetail{
-			ID:         dbOrder.ID,
-			CreatedAt:  dbOrder.CreatedAt,
-			ModifiedAt: dbOrder.ModifiedAt,
-			Product:    product,
-		}
-		orderByte, err := models.OrderStructToByte(order)
-		if err != nil {
-			log.Error("Error caught while converting order details to byte: ", err)
-			return models.OrderDetail{}, fmt.Errorf("something went wrong")
-		}
-
-		// Store order details in cache
-		err = apiCfg.Cache.Set(ctx, params.ID.String(), orderByte, 1*time.Hour).Err()
-		if err != nil {
-			log.Error("Error caught while saving order details to cache: ", err)
-			return models.OrderDetail{}, fmt.Errorf("something went wrong")
-		}
-
-		return order, nil
+		log.Error("Error caught while fetching order details: ", err)
+		return database.GetOrderByIdRow{}, fmt.Errorf("something went wrong")
 	}
-
-	// Convert cached order bytes to order model
-	order, err := models.ByteToOrderStruct(orderByte)
-	if err != nil {
-		log.Error("Error caught while converting order byte to order details: ", err)
-		return models.OrderDetail{}, fmt.Errorf("something went wrong")
-	}
-
-	return order, nil
+	return dbOrder, nil
 }
 
 func DeleteOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.DeleteOrderParams) error {
@@ -128,12 +72,6 @@ func DeleteOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.DeleteOr
 	if err != nil {
 		log.Error("Error caught while deleting order details: ", err)
 		return fmt.Errorf("something went wrong")
-	}
-
-	// Remove deleted product from the cache
-	err = apiCfg.Cache.Del(ctx, params.ID.String()).Err()
-	if err != nil {
-		log.Error("Error caught while deleting the order details from cache: ", err)
 	}
 
 	// Commit the transaction

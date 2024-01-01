@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/order_service/internal/database"
+	"github.com/thejasmeetsingh/go-ecommerce/order_service/models"
 	"github.com/thejasmeetsingh/go-ecommerce/order_service/shared"
 )
 
@@ -60,18 +61,23 @@ func (apiCfg *APIConfig) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := CreateOrderDB(apiCfg, c, database.CreateOrderParams{
+	dbOrder, err := CreateOrderDB(apiCfg, c, database.CreateOrderParams{
 		ID:         uuid.New(),
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
 		UserID:     userID,
 		ProductID:  product.ID,
-	}, product)
+	})
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
+
+	order := models.DatabaseOrderToOrder(dbOrder, product)
+
+	// Call goroutine to save order details in cache
+	go StoreOrderToCache(apiCfg.Cache, c, order)
 
 	c.JSON(http.StatusOK, gin.H{"data": order})
 }
@@ -96,7 +102,7 @@ func (apiCfg *APIConfig) GetOrders(c *gin.Context) {
 		return
 	}
 
-	orders, err := GetOrderListDB(apiCfg, c, database.GetOrdersParams{
+	dbOrders, err := GetOrderListDB(apiCfg, c, database.GetOrdersParams{
 		UserID: userID,
 		Limit:  10,
 		Offset: int32(offset),
@@ -106,6 +112,8 @@ func (apiCfg *APIConfig) GetOrders(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
+
+	orders := models.DatabaseOrderToOrderList(dbOrders)
 
 	if len(orders) == 0 {
 		c.JSON(http.StatusOK, gin.H{"results": []string{}})
@@ -126,6 +134,15 @@ func (apiCfg *APIConfig) GetOrderDetail(c *gin.Context) {
 		return
 	}
 
+	// Check and retrive order from cache
+	cachedOrder, err := RetriveOrderFromCache(apiCfg.Cache, c, orderIDStr)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"data": cachedOrder})
+		return
+	}
+
+	log.Errorln("Error caught while fetching the order details from cache: ", err)
+
 	userID, err := getUserID(c)
 	if err != nil {
 		log.Error("Error caught while parsing user id: ", err)
@@ -133,7 +150,7 @@ func (apiCfg *APIConfig) GetOrderDetail(c *gin.Context) {
 		return
 	}
 
-	order, err := GetOrderDetailDB(apiCfg, c, database.GetOrderByIdParams{
+	dbOrder, err := GetOrderDetailDB(apiCfg, c, database.GetOrderByIdParams{
 		ID:     orderID,
 		UserID: userID,
 	})
@@ -142,6 +159,23 @@ func (apiCfg *APIConfig) GetOrderDetail(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
+
+	// Fetch product details
+	product, err := shared.GetProductIDToDetails(apiCfg.Cache, c, dbOrder.ProductID.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	order := models.OrderDetail{
+		ID:         dbOrder.ID,
+		CreatedAt:  dbOrder.CreatedAt,
+		ModifiedAt: dbOrder.ModifiedAt,
+		Product:    product,
+	}
+
+	// Call goroutine to save order details in cache
+	go StoreOrderToCache(apiCfg.Cache, c, order)
 
 	c.JSON(http.StatusOK, gin.H{"data": order})
 }
@@ -183,6 +217,9 @@ func (apiCfg *APIConfig) DeleteOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
+
+	// Call goroutine to remove order details from cache
+	go DeleteOrderFromCache(apiCfg.Cache, c, orderIDStr)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully!"})
 }
