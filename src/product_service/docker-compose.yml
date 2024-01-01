@@ -22,8 +22,6 @@ services:
     container_name: products_cache
     restart: always
     image: redis:7.2.3-alpine
-    volumes:
-      - redis-db:/var/lib/redis/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 10s
@@ -53,7 +51,6 @@ services:
 
 volumes:
   products-db:
-  redis-db:
 
 networks:
   internal:
