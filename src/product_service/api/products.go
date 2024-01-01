@@ -78,7 +78,7 @@ func (apiCfg *APIConfig) GetProductDetails(c *gin.Context) {
 	productID, err := uuid.Parse(productIDStr)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid product ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid product ID format"})
 		return
 	}
 
@@ -201,7 +201,7 @@ func (apiCfg *APIConfig) DeleteProduct(c *gin.Context) {
 
 	// Check if the current user is the product creator or not
 	if dbProduct.CreatorID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"message": "You cannot update this product details"})
+		c.JSON(http.StatusForbidden, gin.H{"message": "You cannot delete this product details"})
 		return
 	}
 

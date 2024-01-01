@@ -14,11 +14,15 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 		})
 	})
 
-	router := engine.Group("/api/v1/")
-	router.Use(Auth(apiCfg))
-	router.POST("product/", apiCfg.CreateProduct)
-	router.GET("product/:id/", apiCfg.GetProductDetails)
-	router.PATCH("product/:id/", apiCfg.UpdateProductDetails)
-	router.DELETE("product/:id/", apiCfg.DeleteProduct)
-	router.GET("product/", apiCfg.GetProducts)
+	pubRouter := engine.Group("/api/v1/")
+	pubRouter.Use(JWTAuth(apiCfg))
+	pubRouter.POST("product/", apiCfg.CreateProduct)
+	pubRouter.GET("product/:id/", apiCfg.GetProductDetails)
+	pubRouter.PATCH("product/:id/", apiCfg.UpdateProductDetails)
+	pubRouter.DELETE("product/:id/", apiCfg.DeleteProduct)
+	pubRouter.GET("product/", apiCfg.GetProducts)
+
+	pvtRouter := engine.Group("/internal/v1/")
+	pvtRouter.Use(InternalAPIAuth(apiCfg))
+	pvtRouter.POST("product-details/", apiCfg.GetProductIDToDetails)
 }
