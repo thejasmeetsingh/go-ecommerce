@@ -1,13 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/thejasmeetsingh/go-ecommerce/product_service/internal/database"
 )
 
-type productDetail struct {
+type ProductDetail struct {
 	ID          uuid.UUID `json:"id"`
 	CreatedAt   time.Time `json:"created_at"`
 	ModifiedAt  time.Time `json:"modified_at"`
@@ -23,8 +24,8 @@ type productList struct {
 	Description string    `json:"description"`
 }
 
-func DatabaseProductToProduct(dbProduct database.Product) productDetail {
-	return productDetail{
+func DatabaseProductToProduct(dbProduct database.Product) ProductDetail {
+	return ProductDetail{
 		ID:          dbProduct.ID,
 		CreatedAt:   dbProduct.CreatedAt,
 		ModifiedAt:  dbProduct.ModifiedAt,
@@ -46,4 +47,19 @@ func DatabaseProductToProductList(dbProducts []database.GetProductsRow) []produc
 		})
 	}
 	return products
+}
+
+func ProductStructToByte(product ProductDetail) ([]byte, error) {
+	return json.Marshal(product)
+}
+
+func ByteToProductStruct(productByte []byte) (ProductDetail, error) {
+	var product ProductDetail
+
+	err := json.Unmarshal(productByte, &product)
+	if err != nil {
+		return product, err
+	}
+
+	return product, nil
 }

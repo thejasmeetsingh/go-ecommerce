@@ -3,8 +3,9 @@ package shared
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
@@ -19,35 +20,19 @@ type userResponse struct {
 	} `json:"data"`
 }
 
-func getBaseURL(request *http.Request, host, endpoint string) string {
-	protocol := "http"
-	if request.TLS != nil {
-		protocol += "s"
-	}
-
-	return fmt.Sprintf("%s://%s/internal/v1/%s/", protocol, host, endpoint)
-}
-
-func getAPISecretKey() (string, error) {
-	apiSecretKey := os.Getenv("INTERNAL_API_SECRET")
-
-	if apiSecretKey == "" {
-		return "", fmt.Errorf("API secret is not configured")
-	}
-
-	return apiSecretKey, nil
-}
-
 // Call user token API to fetch user details
 func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (userResponse, error) {
-	apiSecretKey, err := getAPISecretKey()
+	apiSecretKey, err := GetAPISecretKey()
 	if err != nil {
 		return userResponse{}, err
 	}
 
-	userServiceHost := os.Getenv("USER_SERVICE_HOST")
+	userServiceHost, err := GetUserServiceHost()
+	if err != nil {
+		return userResponse{}, err
+	}
 
-	requestURL := getBaseURL(ctx.Request, userServiceHost, "token")
+	requestURL := GetBaseURL(ctx.Request, userServiceHost, "token")
 
 	clinet := resty.New()
 
@@ -62,7 +47,7 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (userRespo
 		Post(requestURL)
 
 	if rawResp.StatusCode() != http.StatusOK || err != nil {
-		return userResponse{}, fmt.Errorf("error caught while fetching user details API")
+		return userResponse{}, fmt.Errorf("error caught while calling user details API")
 	}
 
 	return *response, nil
@@ -72,7 +57,7 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (userRespo
 func GetUserFromToken(client *redis.Client, ctx *gin.Context, token string) (string, error) {
 	// Check if key is available in the cache or not
 	userID, err := client.Get(ctx, token).Result()
-	if err != nil && userID != "" {
+	if err == nil && userID != "" {
 		return userID, nil
 	}
 
@@ -82,12 +67,14 @@ func GetUserFromToken(client *redis.Client, ctx *gin.Context, token string) (str
 
 	response, err := getUserDetails(ctx, payload)
 	if err != nil {
+		log.Errorln("Error while fetching user details from user service: ", err)
 		return "", err
 	}
 
 	// Set userID into cache
 	err = client.Set(ctx, "token", response.Data.ID, 1*time.Hour).Err()
 	if err != nil {
+		log.Errorln("Error while saving userID into cache: ", err)
 		return "", err
 	}
 
