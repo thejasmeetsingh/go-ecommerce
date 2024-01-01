@@ -55,17 +55,23 @@ func (q *Queries) DeleteOrder(ctx context.Context, id uuid.UUID) error {
 }
 
 const getOrderById = `-- name: GetOrderById :one
-SELECT id, created_at, modified_at, user_id, product_id FROM orders WHERE id=$1
+SELECT id, created_at, modified_at, product_id FROM orders WHERE id=$1
 `
 
-func (q *Queries) GetOrderById(ctx context.Context, id uuid.UUID) (Order, error) {
+type GetOrderByIdRow struct {
+	ID         uuid.UUID
+	CreatedAt  time.Time
+	ModifiedAt time.Time
+	ProductID  uuid.UUID
+}
+
+func (q *Queries) GetOrderById(ctx context.Context, id uuid.UUID) (GetOrderByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getOrderById, id)
-	var i Order
+	var i GetOrderByIdRow
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
 		&i.ModifiedAt,
-		&i.UserID,
 		&i.ProductID,
 	)
 	return i, err
