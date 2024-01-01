@@ -61,7 +61,7 @@ func TestConcurrentProductDeletion(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 
-	// Counter to track successful product creation
+	// Counter to track successful product deletion
 	var successCounter int
 	var mu sync.Mutex // Mutex to protect the counter
 
@@ -78,7 +78,7 @@ func TestConcurrentProductDeletion(t *testing.T) {
 			err := DeleteProductDetailDB(apiCfg, ctx, productID)
 
 			if err != nil {
-				// Increment the counter if product creation is successful
+				// Increment the counter if product deletion is successful
 				mu.Lock()
 				successCounter++
 				mu.Unlock()
