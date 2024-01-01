@@ -1,3 +1,5 @@
+// Contains Order CRUD queries related functions
+
 package api
 
 import (
