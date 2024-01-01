@@ -7,32 +7,56 @@ services:
     volumes:
       - orders-db:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=order_db_user
-      - POSTGRES_PASSWORD=1234
-      - POSTGRES_DB=order_db
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d order_db -U order_db_user"]
+      test: ["CMD-SHELL", "pg_isready -d $DB_NAME -U $DB_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+  
+  redis-db:
+    container_name: orders_cache
+    restart: always
+    image: redis:7.2.3-alpine
+    volumes:
+      - redis-db:/var/lib/redis/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
 
   order-service:
     build: .
     restart: on-failure
     container_name: order_service
-    command: sh -c "go install && order_service"
+    command: sh -c "goose -dir ./sql/schema/ postgres $DB_URL up && go install && order_service"
     volumes:
       - .:/go/src/app
     ports:
-      - 8003:8000
+      - $PORT:$PORT
     depends_on:
       orders-db:
         condition: service_healthy
-    environment:
-      - DB_URL=postgres://order_db_user:1234@orders-db/order_db?sslmode=disable
-      - CGO_ENABLED=1
-      - PORT=8000
-      - GIN_MODE=debug
+      redis-db:
+        condition: service_healthy
+    env_file: .env
+    networks:
+      - internal
+      - shared-network
 
 volumes:
   orders-db:
+  redis-db:
+
+networks:
+  internal:
+    driver: bridge
+  shared-network:
+    external: true
