@@ -46,17 +46,27 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 }
 
 const deleteOrder = `-- name: DeleteOrder :exec
-DELETE FROM orders WHERE id=$1
+DELETE FROM orders WHERE id=$1 AND user_id=$2
 `
 
-func (q *Queries) DeleteOrder(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteOrder, id)
+type DeleteOrderParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteOrder(ctx context.Context, arg DeleteOrderParams) error {
+	_, err := q.db.ExecContext(ctx, deleteOrder, arg.ID, arg.UserID)
 	return err
 }
 
 const getOrderById = `-- name: GetOrderById :one
-SELECT id, created_at, modified_at, product_id FROM orders WHERE id=$1
+SELECT id, created_at, modified_at, product_id FROM orders WHERE id=$1 AND user_id=$2
 `
+
+type GetOrderByIdParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
 
 type GetOrderByIdRow struct {
 	ID         uuid.UUID
@@ -65,8 +75,8 @@ type GetOrderByIdRow struct {
 	ProductID  uuid.UUID
 }
 
-func (q *Queries) GetOrderById(ctx context.Context, id uuid.UUID) (GetOrderByIdRow, error) {
-	row := q.db.QueryRowContext(ctx, getOrderById, id)
+func (q *Queries) GetOrderById(ctx context.Context, arg GetOrderByIdParams) (GetOrderByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getOrderById, arg.ID, arg.UserID)
 	var i GetOrderByIdRow
 	err := row.Scan(
 		&i.ID,

@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -36,13 +38,17 @@ func getUserDetails(ctx *gin.Context, payload map[string]interface{}) (userRespo
 
 	response := &userResponse{}
 
-	clinet.R().
+	rawResp, err := clinet.R().
 		SetResult(response).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept", "application/json").
 		SetHeader("Secret", apiSecretKey).
 		SetBody(payload).
 		Post(requestURL)
+
+	if rawResp.StatusCode() != http.StatusOK || err != nil {
+		return userResponse{}, fmt.Errorf("error caught while calling user details API")
+	}
 
 	return *response, nil
 }

@@ -1,6 +1,8 @@
 package shared
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,13 +34,17 @@ func getProductDetails(ctx *gin.Context, payload map[string]interface{}) (produc
 
 	response := &productResponse{}
 
-	clinet.R().
+	rawResp, err := clinet.R().
 		SetResult(response).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept", "application/json").
 		SetHeader("Secret", apiSecretKey).
 		SetBody(payload).
 		Post(requestURL)
+
+	if rawResp.StatusCode() != http.StatusOK || err != nil {
+		return productResponse{}, fmt.Errorf("error caught while calling product details API")
+	}
 
 	return *response, nil
 }
