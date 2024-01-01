@@ -39,14 +39,14 @@ func (apiCfg *APIConfig) CreateOrder(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&params)
 	if err != nil {
-		log.Error("Error caught while parsing order creation request data: ", err)
+		log.Errorln("Error caught while parsing order creation request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request"})
 		return
 	}
 
 	userID, err := getUserID(c)
 	if err != nil {
-		log.Error("Error caught while parsing user id: ", err)
+		log.Errorln("Error caught while parsing user id: ", err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Invalid credentails"})
 		return
 	}
@@ -99,7 +99,7 @@ func (apiCfg *APIConfig) GetOrders(c *gin.Context) {
 
 	userID, err := getUserID(c)
 	if err != nil {
-		log.Error("Error caught while parsing user id: ", err)
+		log.Errorln("Error caught while parsing user id: ", err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Invalid credentails"})
 		return
 	}
@@ -131,7 +131,7 @@ func (apiCfg *APIConfig) GetOrderDetail(c *gin.Context) {
 	orderID, err := uuid.Parse(orderIDStr)
 
 	if err != nil {
-		log.Error("Error caught while parsing the order ID: ", err)
+		log.Errorln("Error caught while parsing the order ID: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid order id format"})
 		return
 	}
@@ -147,7 +147,7 @@ func (apiCfg *APIConfig) GetOrderDetail(c *gin.Context) {
 
 	userID, err := getUserID(c)
 	if err != nil {
-		log.Error("Error caught while parsing user id: ", err)
+		log.Errorln("Error caught while parsing user id: ", err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Invalid credentails"})
 		return
 	}
@@ -188,14 +188,14 @@ func (apiCfg *APIConfig) DeleteOrder(c *gin.Context) {
 	orderID, err := uuid.Parse(orderIDStr)
 
 	if err != nil {
-		log.Error("Error caught while parsing the order ID: ", err)
+		log.Errorln("Error caught while parsing the order ID: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid order id format"})
 		return
 	}
 
 	userID, err := getUserID(c)
 	if err != nil {
-		log.Error("Error caught while parsing user id: ", err)
+		log.Errorln("Error caught while parsing user id: ", err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Invalid credentails"})
 		return
 	}

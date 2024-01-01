@@ -56,7 +56,7 @@ func GetProductIDToDetails(client *redis.Client, ctx *gin.Context, productID str
 	if err == nil && productByte != nil {
 		product, err := models.ByteToProductStruct(productByte)
 		if err != nil {
-			log.Error("Error while converting product byte to product struct obj: ", err)
+			log.Errorln("Error while converting product byte to product struct obj: ", err)
 		} else {
 			return product, nil
 		}
@@ -68,19 +68,19 @@ func GetProductIDToDetails(client *redis.Client, ctx *gin.Context, productID str
 
 	response, err := getProductDetails(ctx, payload)
 	if err != nil {
-		log.Error("Error while fetching product details from product service: ", err)
+		log.Errorln("Error while fetching product details from product service: ", err)
 		return models.Product{}, err
 	}
 
 	productByte, err = models.ProductStructToByte(response.Data)
 	if err != nil {
-		log.Error("Error while converting product details to bytes", err)
+		log.Errorln("Error while converting product details to bytes", err)
 	}
 
 	// Save product details into cache
 	err = client.Set(ctx, productID, productByte, 1*time.Hour).Err()
 	if err != nil {
-		log.Error("Error while saving product details into cache: ", err)
+		log.Errorln("Error while saving product details into cache: ", err)
 	}
 
 	return response.Data, nil

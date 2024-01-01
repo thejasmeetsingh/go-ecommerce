@@ -12,6 +12,7 @@ jobs:
         microservices:
           - user_service
           - product_service
+          - order_service
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go

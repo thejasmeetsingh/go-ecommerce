@@ -24,7 +24,6 @@ func StoreOrderToCache(client *redis.Client, ctx *gin.Context, order models.Orde
 
 	if err != nil {
 		log.Errorln("Error caught while saving order details into cache: ", err)
-		return
 	}
 }
 

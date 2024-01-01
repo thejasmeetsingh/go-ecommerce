@@ -67,14 +67,14 @@ func GetUserFromToken(client *redis.Client, ctx *gin.Context, token string) (str
 
 	response, err := getUserDetails(ctx, payload)
 	if err != nil {
-		log.Error("Error while fetching user details from user service: ", err)
+		log.Errorln("Error while fetching user details from user service: ", err)
 		return "", err
 	}
 
 	// Set userID into cache
 	err = client.Set(ctx, "token", response.Data.ID, 1*time.Hour).Err()
 	if err != nil {
-		log.Error("Error while saving userID into cache: ", err)
+		log.Errorln("Error while saving userID into cache: ", err)
 		return "", err
 	}
 

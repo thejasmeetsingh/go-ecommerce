@@ -43,7 +43,7 @@ func CreateOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.CreateOr
 func GetOrderListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrdersParams) ([]database.GetOrdersRow, error) {
 	dbOrders, err := apiCfg.Queries.GetOrders(ctx, params)
 	if err != nil {
-		log.Error("Error caught while fetching order list: ", err)
+		log.Errorln("Error caught while fetching order list: ", err)
 		return []database.GetOrdersRow{}, fmt.Errorf("something went wrong")
 	}
 	return dbOrders, nil
@@ -53,7 +53,7 @@ func GetOrderListDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrde
 func GetOrderDetailDB(apiCfg *APIConfig, ctx *gin.Context, params database.GetOrderByIdParams) (database.GetOrderByIdRow, error) {
 	dbOrder, err := apiCfg.Queries.GetOrderById(ctx, params)
 	if err != nil {
-		log.Error("Error caught while fetching order details: ", err)
+		log.Errorln("Error caught while fetching order details: ", err)
 		return database.GetOrderByIdRow{}, fmt.Errorf("something went wrong")
 	}
 	return dbOrder, nil
@@ -72,7 +72,7 @@ func DeleteOrderDB(apiCfg *APIConfig, ctx *gin.Context, params database.DeleteOr
 	// Delete the order
 	err = qtx.DeleteOrder(ctx, params)
 	if err != nil {
-		log.Error("Error caught while deleting order details: ", err)
+		log.Errorln("Error caught while deleting order details: ", err)
 		return fmt.Errorf("something went wrong")
 	}
 
