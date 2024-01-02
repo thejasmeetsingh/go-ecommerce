@@ -5,12 +5,14 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/v9"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/internal/database"
 )
 
 type APIConfig struct {
 	DB      *sql.DB
 	Queries *database.Queries
+	Cache   *redis.Client
 }
 
 func GetDBConn(dbURL string) *sql.DB {
@@ -21,6 +23,16 @@ func GetDBConn(dbURL string) *sql.DB {
 	}
 
 	return conn
+}
+
+func GetRedisClient() *redis.Client {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "users_cache:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	return client
 }
 
 func GetPromRequestTotal() *prometheus.CounterVec {

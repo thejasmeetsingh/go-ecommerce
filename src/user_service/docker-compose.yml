@@ -18,6 +18,18 @@ services:
     networks:
       - internal
 
+  redis-db:
+    container_name: users_cache
+    restart: always
+    image: redis:7.2.3-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
   user-monitoring:
     container_name: user_monitoring
     image: prom/prometheus
@@ -53,6 +65,8 @@ services:
       - $PORT:$PORT
     depends_on:
       users-db:
+        condition: service_healthy
+      redis-db:
         condition: service_healthy
     env_file: .env
     networks:

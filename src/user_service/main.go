@@ -39,9 +39,14 @@ func main() {
 	conn := api.GetDBConn(dbURL)
 	defer conn.Close()
 
+	// Get Redis connection
+	redisClient := api.GetRedisClient()
+	defer redisClient.Close()
+
 	apiCfg := api.APIConfig{
 		DB:      conn,
 		Queries: database.New(conn),
+		Cache:   redisClient,
 	}
 
 	// Initialize prometheus

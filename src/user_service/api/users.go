@@ -15,35 +15,35 @@ import (
 )
 
 // Common function for getting user object from the context, For all handlers in this module
-func getDBUser(c *gin.Context) (database.User, error) {
-	user, exists := c.Get("user")
+func getUserFromCtx(c *gin.Context) (User, error) {
+	value, exists := c.Get("user")
 
 	if !exists {
-		return database.User{}, fmt.Errorf("authentication required")
+		return User{}, fmt.Errorf("authentication required")
 	}
 
-	dbUser, ok := user.(database.User)
+	user, ok := value.(User)
 
 	if !ok {
-		return database.User{}, fmt.Errorf("invalid user")
+		return User{}, fmt.Errorf("invalid user")
 	}
 
-	return dbUser, nil
+	return user, nil
 }
 
 // Fetch user profile details
 func (apiCfg *APIConfig) GetUserProfile(c *gin.Context) {
-	dbUser, err := getDBUser(c)
+	user, err := getUserFromCtx(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": DatabaseUserToUser(dbUser)})
+	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
 // Update user profile details
 func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
-	dbUser, err := getDBUser(c)
+	user, err := getUserFromCtx(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
 		return
@@ -70,12 +70,12 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 
 	// Pre-fill name and email address with existing data from DB
 	if params.Name == "" {
-		params.Name = dbUser.Name.String
+		params.Name = user.Name
 	}
 
 	isEmailChanged := true
 	if params.Email == "" {
-		params.Email = dbUser.Email
+		params.Email = user.Email
 		isEmailChanged = false
 	}
 
@@ -88,7 +88,7 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 	}
 
 	// Check if user any exists with the new email address
-	if isEmailChanged && email != dbUser.Email {
+	if isEmailChanged && email != user.Email {
 		_, err = apiCfg.Queries.GetUserByEmail(c, email)
 		if err == nil {
 			log.Errorln(err)
@@ -97,15 +97,25 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 		}
 	}
 
+	// Begin DB transaction
+	tx, err := apiCfg.DB.Begin()
+	if err != nil {
+		log.Fatal("Error caught while starting a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+	defer tx.Rollback()
+	qtx := apiCfg.Queries.WithTx(tx)
+
 	// Update the profile details
-	user, err := apiCfg.Queries.UpdateUserDetails(c, database.UpdateUserDetailsParams{
+	dbUser, err := qtx.UpdateUserDetails(c, database.UpdateUserDetailsParams{
 		Name: sql.NullString{
 			String: params.Name,
 			Valid:  true,
 		},
 		Email:      email,
 		ModifiedAt: time.Now().UTC(),
-		ID:         dbUser.ID,
+		ID:         user.ID,
 	})
 
 	if err != nil {
@@ -114,29 +124,62 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile details updated successfully!", "data": DatabaseUserToUser(user)})
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal("Error caught while closing a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+
+	// Call goroutine to save user details into cache
+	user = DatabaseUserToUser(dbUser)
+	go StoreUserToCache(apiCfg.Cache, c, user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile details updated successfully!", "data": user})
 }
 
 // Delete user profile
 func (apiCfg *APIConfig) DeleteUserProfile(c *gin.Context) {
-	dbUser, err := getDBUser(c)
+	user, err := getUserFromCtx(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
 		return
 	}
 
-	if err := apiCfg.Queries.DeleteUser(c, dbUser.ID); err != nil {
+	// Begin DB transaction
+	tx, err := apiCfg.DB.Begin()
+	if err != nil {
+		log.Fatal("Error caught while starting a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+	defer tx.Rollback()
+	qtx := apiCfg.Queries.WithTx(tx)
+
+	if err := qtx.DeleteUser(c, user.ID); err != nil {
 		log.Errorln(err)
 		c.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
 		return
 	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal("Error caught while closing a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+
+	// Delete user details from the cache
+	go DeleteUserFromCache(apiCfg.Cache, c, user.ID.String())
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile deleted successfully!"})
 }
 
 // Change password API for authenticated user
 func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
-	dbUser, err := getDBUser(c)
+	user, err := getUserFromCtx(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
 		return
@@ -153,6 +196,14 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	if err != nil {
 		log.Errorln(err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
+		return
+	}
+
+	// Fetch user by ID from DB
+	dbUser, err := apiCfg.Queries.GetUserById(c, user.ID)
+	if err != nil {
+		log.Errorln(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
 
@@ -188,8 +239,18 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	// Begin DB transaction
+	tx, err := apiCfg.DB.Begin()
+	if err != nil {
+		log.Fatal("Error caught while starting a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
+		return
+	}
+	defer tx.Rollback()
+	qtx := apiCfg.Queries.WithTx(tx)
+
 	// Update the password
-	_, err = apiCfg.Queries.UpdateUserPassword(c, database.UpdateUserPasswordParams{
+	_, err = qtx.UpdateUserPassword(c, database.UpdateUserPasswordParams{
 		Password:   hashedPassword,
 		ModifiedAt: time.Now().UTC(),
 		ID:         dbUser.ID,
@@ -198,6 +259,14 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	if err != nil {
 		log.Errorln(err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
+		return
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal("Error caught while closing a transaction: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
 

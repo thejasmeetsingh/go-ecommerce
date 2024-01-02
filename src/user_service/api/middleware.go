@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis_rate/v10"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/src/user_service/utils"
 )
 
@@ -57,15 +59,28 @@ func JWTAuth(apiCfg *APIConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Fetch the user by the ID
-		dbUser, err := apiCfg.Queries.GetUserById(ctx, userID)
-		if err != nil {
-			ctx.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
-			ctx.Abort()
-			return
-		}
+		// Fetch the user by the ID from cache
+		cachedUser, err := RetriveUserFromCache(apiCfg.Cache, ctx, userID.String())
+		if err == nil {
+			ctx.Set("user", cachedUser)
+		} else {
+			log.Errorln("Error caught while retrieving user from cache: ", err)
 
-		ctx.Set("user", dbUser)
+			// Fetch user by ID from DB
+			dbUser, err := apiCfg.Queries.GetUserById(ctx, userID)
+			if err != nil {
+				ctx.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
+				ctx.Abort()
+				return
+			}
+
+			user := DatabaseUserToUser(dbUser)
+
+			// Call goroutine to save user details into cache
+			go StoreUserToCache(apiCfg.Cache, ctx, user)
+
+			ctx.Set("user", user)
+		}
 
 		// Further call the given handler and send the user instance as well
 		ctx.Next()
@@ -93,7 +108,7 @@ func InternalAPIAuth(apiCfg *APIConfig) gin.HandlerFunc {
 }
 
 // Prometheus middleware to record HTTP request timings
-func PrometheusMiddleware() gin.HandlerFunc {
+func PrometheusMonitoring() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 
@@ -108,5 +123,31 @@ func PrometheusMiddleware() gin.HandlerFunc {
 
 		httpRequestsTotal.WithLabelValues(c.FullPath(), c.Request.Method).Inc()
 		httpRequestDuration.WithLabelValues(c.FullPath(), c.Request.Method).Observe(duration)
+	}
+}
+
+// Middleware for an IP based rate limiting
+func RateLimiter(apiCfg *APIConfig) gin.HandlerFunc {
+	limiter := redis_rate.NewLimiter(apiCfg.Cache)
+	return func(ctx *gin.Context) {
+		// Key is based on the client's IP address
+		key := ctx.ClientIP()
+
+		// Allow only 5 requests per second per IP address
+		result, err := limiter.Allow(ctx, key, redis_rate.PerMinute(10))
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal Server Error"})
+			ctx.Abort()
+			return
+		}
+
+		if result.Allowed == 0 {
+			ctx.JSON(http.StatusTooManyRequests, gin.H{"message": "Rate Limit Exceeded"})
+			ctx.Abort()
+			return
+		}
+
+		// Continue processing the request
+		ctx.Next()
 	}
 }

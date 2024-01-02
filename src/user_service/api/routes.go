@@ -15,8 +15,11 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 		})
 	})
 
+	// Add Rate limiter middleware
+	engine.Use(RateLimiter(apiCfg))
+
 	// Add prometheus middleware and route
-	engine.Use(PrometheusMiddleware())
+	engine.Use(PrometheusMonitoring())
 	engine.GET("/metrics/", gin.WrapH(promhttp.Handler()))
 
 	// Public API Routes
