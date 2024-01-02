@@ -22,9 +22,25 @@ services:
     container_name: user_monitoring
     image: prom/prometheus
     ports:
-      - $PROM_PORT:$PROM_PORT
+      - $PROM_PORT:9090
     volumes:
       - .:/etc/prometheus
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - internal
+
+  user-service-analytics:
+    container_name: user_service_analytics
+    image: grafana/grafana:latest
+    ports:
+      - $GRAFANA_PORT:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=$GF_ADMIN_USER
+      - GF_SECURITY_ADMIN_PASSWORD=$GF_ADMIN_PASSWORD
+    depends_on:
+      - user-monitoring
+    networks:
+      - internal
 
   user-service:
     build: .
