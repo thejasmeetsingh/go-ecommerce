@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "product_service"
+    static_configs:
+      - targets: ["product_service:8002"]

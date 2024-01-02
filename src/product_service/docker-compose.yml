@@ -30,6 +30,30 @@ services:
     networks:
       - internal
 
+  product-monitoring:
+    container_name: product_monitoring
+    image: prom/prometheus
+    ports:
+      - $PROM_PORT:9090
+    volumes:
+      - .:/etc/prometheus
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - internal
+
+  product-service-analytics:
+    container_name: product_service_analytics
+    image: grafana/grafana:latest
+    ports:
+      - $GRAFANA_PORT:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=$GF_ADMIN_USER
+      - GF_SECURITY_ADMIN_PASSWORD=$GF_ADMIN_PASSWORD
+    depends_on:
+      - product-monitoring
+    networks:
+      - internal
+
   product-service:
     build: .
     restart: on-failure
