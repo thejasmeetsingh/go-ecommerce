@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis_rate/v10"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejasmeetsingh/go-ecommerce/product_service/shared"
 )
@@ -81,5 +82,31 @@ func PrometheusMiddleware() gin.HandlerFunc {
 
 		httpRequestsTotal.WithLabelValues(c.FullPath(), c.Request.Method).Inc()
 		httpRequestDuration.WithLabelValues(c.FullPath(), c.Request.Method).Observe(duration)
+	}
+}
+
+// Middleware for an IP based rate limiting
+func RateLimiter(apiCfg *APIConfig) gin.HandlerFunc {
+	limiter := redis_rate.NewLimiter(apiCfg.Cache)
+	return func(ctx *gin.Context) {
+		// Key is based on the client's IP address
+		key := ctx.ClientIP()
+
+		// Allow only 10 requests per minute per IP address
+		result, err := limiter.Allow(ctx, key, redis_rate.PerMinute(10))
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal Server Error"})
+			ctx.Abort()
+			return
+		}
+
+		if result.Allowed == 0 {
+			ctx.JSON(http.StatusTooManyRequests, gin.H{"message": "Rate Limit Exceeded"})
+			ctx.Abort()
+			return
+		}
+
+		// Continue processing the request
+		ctx.Next()
 	}
 }
