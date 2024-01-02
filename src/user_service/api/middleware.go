@@ -91,3 +91,22 @@ func InternalAPIAuth(apiCfg *APIConfig) gin.HandlerFunc {
 		ctx.Next()
 	}
 }
+
+// Prometheus middleware to record HTTP request timings
+func PrometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+
+		// Continue processing the request
+		c.Next()
+
+		// Collect metrics after the request is processed
+		duration := time.Since(startTime).Seconds()
+
+		httpRequestsTotal := GetPromRequestTotal()
+		httpRequestDuration := GetPromRequestDuration()
+
+		httpRequestsTotal.WithLabelValues(c.FullPath(), c.Request.Method).Inc()
+		httpRequestDuration.WithLabelValues(c.FullPath(), c.Request.Method).Observe(duration)
+	}
+}

@@ -18,6 +18,14 @@ services:
     networks:
       - internal
 
+  user-monitoring:
+    container_name: user_monitoring
+    image: prom/prometheus
+    ports:
+      - $PROM_PORT:$PROM_PORT
+    volumes:
+      - .:/etc/prometheus
+
   user-service:
     build: .
     restart: on-failure
