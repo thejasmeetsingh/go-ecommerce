@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "order_service"
+    static_configs:
+      - targets: ["order_service:8003"]
