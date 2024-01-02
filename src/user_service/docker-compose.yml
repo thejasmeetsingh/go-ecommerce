@@ -18,6 +18,42 @@ services:
     networks:
       - internal
 
+  redis-db:
+    container_name: users_cache
+    restart: always
+    image: redis:7.2.3-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  user-monitoring:
+    container_name: user_monitoring
+    image: prom/prometheus
+    ports:
+      - $PROM_PORT:9090
+    volumes:
+      - .:/etc/prometheus
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - internal
+
+  user-service-analytics:
+    container_name: user_service_analytics
+    image: grafana/grafana:latest
+    ports:
+      - $GRAFANA_PORT:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=$GF_ADMIN_USER
+      - GF_SECURITY_ADMIN_PASSWORD=$GF_ADMIN_PASSWORD
+    depends_on:
+      - user-monitoring
+    networks:
+      - internal
+
   user-service:
     build: .
     restart: on-failure
@@ -29,6 +65,8 @@ services:
       - $PORT:$PORT
     depends_on:
       users-db:
+        condition: service_healthy
+      redis-db:
         condition: service_healthy
     env_file: .env
     networks:

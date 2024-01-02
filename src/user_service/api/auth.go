@@ -59,7 +59,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	// Begin DB transaction
 	tx, err := apiCfg.DB.Begin()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error caught while starting a transaction: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -67,7 +67,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	qtx := apiCfg.Queries.WithTx(tx)
 
 	// Create user account
-	user, err := qtx.CreateUser(c, database.CreateUserParams{
+	dbUser, err := qtx.CreateUser(c, database.CreateUserParams{
 		ID:         uuid.New(),
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
@@ -82,7 +82,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	}
 
 	// Generate auth tokens for the user
-	tokens, err := utils.GenerateTokens(user.ID.String())
+	tokens, err := utils.GenerateTokens(dbUser.ID.String())
 
 	if err != nil {
 		log.Errorln(err)
@@ -90,10 +90,14 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 		return
 	}
 
+	// Store user detail in cache
+	user := DatabaseUserToUser(dbUser)
+	go StoreUserToCache(apiCfg.Cache, c, user)
+
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error caught while closing a transaction: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}

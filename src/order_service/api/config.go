@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	"github.com/thejasmeetsingh/go-ecommerce/order_service/internal/database"
 )
@@ -34,4 +35,28 @@ func GetRedisClient() *redis.Client {
 	})
 
 	return client
+}
+
+func GetPromRequestTotal() *prometheus.CounterVec {
+	httpRequestsTotal := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests.",
+		},
+		[]string{"handler", "method"},
+	)
+
+	return httpRequestsTotal
+}
+
+func GetPromRequestDuration() *prometheus.HistogramVec {
+	httpRequestDuration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "HTTP request duration in seconds.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"handler", "method"},
+	)
+	return httpRequestDuration
 }

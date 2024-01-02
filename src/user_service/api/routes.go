@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
@@ -13,6 +14,13 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 			"message": "Up and Running!",
 		})
 	})
+
+	// Add Rate limiter middleware
+	engine.Use(RateLimiter(apiCfg))
+
+	// Add prometheus middleware and route
+	engine.Use(PrometheusMonitoring())
+	engine.GET("/metrics/", gin.WrapH(promhttp.Handler()))
 
 	// Public API Routes
 	pubRouter := engine.Group("/api/v1/")

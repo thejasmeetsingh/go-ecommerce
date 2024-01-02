@@ -22,13 +22,35 @@ services:
     container_name: orders_cache
     restart: always
     image: redis:7.2.3-alpine
-    volumes:
-      - redis-db:/var/lib/redis/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  order-monitoring:
+    container_name: order_monitoring
+    image: prom/prometheus
+    ports:
+      - $PROM_PORT:9090
+    volumes:
+      - .:/etc/prometheus
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - internal
+
+  order-service-analytics:
+    container_name: order_service_analytics
+    image: grafana/grafana:latest
+    ports:
+      - $GRAFANA_PORT:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=$GF_ADMIN_USER
+      - GF_SECURITY_ADMIN_PASSWORD=$GF_ADMIN_PASSWORD
+    depends_on:
+      - order-monitoring
     networks:
       - internal
 
@@ -53,7 +75,6 @@ services:
 
 volumes:
   orders-db:
-  redis-db:
 
 networks:
   internal:
