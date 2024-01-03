@@ -20,7 +20,7 @@ func (apiCfg *APIConfig) GetUserFromToken(c *gin.Context) {
 	err := c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing internal API request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
@@ -46,7 +46,7 @@ func (apiCfg *APIConfig) GetUserFromToken(c *gin.Context) {
 	}
 
 	// Fetch the user by the ID
-	dbUser, err := apiCfg.Queries.GetUserById(c, userID)
+	dbUser, err := GetUserByIDFromDB(apiCfg, c, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
 		return

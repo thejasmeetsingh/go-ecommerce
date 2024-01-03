@@ -24,7 +24,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	err := c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing signup request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
@@ -43,15 +43,14 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	hashedPassword, err := utils.GetHashedPassword(params.Password)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while generating hashed password: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
 
 	// Check if user exists with the given email address
-	_, err = apiCfg.Queries.GetUserByEmail(c, email)
+	_, err = GetUserByEmailDB(apiCfg, c, email)
 	if err == nil {
-		log.Errorln(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "User with this email address already exists"})
 		return
 	}
@@ -76,7 +75,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while creating a user in DB: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -85,7 +84,7 @@ func (apiCfg *APIConfig) Singup(c *gin.Context) {
 	tokens, err := utils.GenerateTokens(dbUser.ID.String())
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while generating auth tokens during signup: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -116,13 +115,13 @@ func (apiCfg *APIConfig) Login(c *gin.Context) {
 	err := c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing login request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
 
 	// Check wheather the user exists with the given email or not
-	user, err := apiCfg.Queries.GetUserByEmail(c, strings.ToLower(params.Email))
+	user, err := GetUserByEmailDB(apiCfg, c, strings.ToLower(params.Email))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "User does not exists, Please check your credentials"})
 		return
@@ -142,7 +141,7 @@ func (apiCfg *APIConfig) Login(c *gin.Context) {
 	tokens, err := utils.GenerateTokens(user.ID.String())
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while generating auth tokens during login: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -162,14 +161,14 @@ func (apiCfg *APIConfig) RefreshAccessToken(c *gin.Context) {
 	err := c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing refresh token request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
 
 	tokens, err := utils.ReIssueAccessToken(params.RefreshToken)
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while re-issuing auth tokens: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while issueing new tokens"})
 		return
 	}

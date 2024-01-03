@@ -57,7 +57,7 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 	err = c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing update user detail API request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
@@ -89,26 +89,15 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 
 	// Check if user any exists with the new email address
 	if isEmailChanged && email != user.Email {
-		_, err = apiCfg.Queries.GetUserByEmail(c, email)
+		_, err = GetUserByEmailDB(apiCfg, c, email)
 		if err == nil {
-			log.Errorln(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "User with this email address already exists"})
 			return
 		}
 	}
 
-	// Begin DB transaction
-	tx, err := apiCfg.DB.Begin()
-	if err != nil {
-		log.Fatal("Error caught while starting a transaction: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
-		return
-	}
-	defer tx.Rollback()
-	qtx := apiCfg.Queries.WithTx(tx)
-
 	// Update the profile details
-	dbUser, err := qtx.UpdateUserDetails(c, database.UpdateUserDetailsParams{
+	dbUser, err := UpdateUserDetailDB(apiCfg, c, database.UpdateUserDetailsParams{
 		Name: sql.NullString{
 			String: params.Name,
 			Valid:  true,
@@ -119,15 +108,6 @@ func (apiCfg *APIConfig) UpdateUserProfile(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Errorln(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
-		return
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal("Error caught while closing a transaction: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -147,27 +127,10 @@ func (apiCfg *APIConfig) DeleteUserProfile(c *gin.Context) {
 		return
 	}
 
-	// Begin DB transaction
-	tx, err := apiCfg.DB.Begin()
-	if err != nil {
-		log.Fatal("Error caught while starting a transaction: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
-		return
-	}
-	defer tx.Rollback()
-	qtx := apiCfg.Queries.WithTx(tx)
+	err = DeleteUserDB(apiCfg, c, user.ID)
 
-	if err := qtx.DeleteUser(c, user.ID); err != nil {
-		log.Errorln(err)
+	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
-		return
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal("Error caught while closing a transaction: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
 
@@ -194,15 +157,14 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	err = c.ShouldBindJSON(&params)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while parsing change password API request data: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Error while parsing the request data"})
 		return
 	}
 
 	// Fetch user by ID from DB
-	dbUser, err := apiCfg.Queries.GetUserById(c, user.ID)
+	dbUser, err := GetUserByIDFromDB(apiCfg, c, user.ID)
 	if err != nil {
-		log.Errorln(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
@@ -210,11 +172,11 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	// Check wheather or not old password is correct or not
 	match, err := utils.CheckPassowrdValid(params.OldPassword, dbUser.Password)
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while checking current password: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid old password, Please try again."})
 		return
 	} else if !match {
-		log.Errorln(err)
+		log.Errorln("Error caught while checking current password: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid old password, Please try again."})
 		return
 	}
@@ -234,39 +196,20 @@ func (apiCfg *APIConfig) ChangePassword(c *gin.Context) {
 	hashedPassword, err := utils.GetHashedPassword(params.NewPassword)
 
 	if err != nil {
-		log.Errorln(err)
+		log.Errorln("Error caught while generating hashed password: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
 		return
 	}
 
-	// Begin DB transaction
-	tx, err := apiCfg.DB.Begin()
-	if err != nil {
-		log.Fatal("Error caught while starting a transaction: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
-		return
-	}
-	defer tx.Rollback()
-	qtx := apiCfg.Queries.WithTx(tx)
-
 	// Update the password
-	_, err = qtx.UpdateUserPassword(c, database.UpdateUserPasswordParams{
+	err = UpdateUserPasswordDB(apiCfg, c, database.UpdateUserPasswordParams{
 		Password:   hashedPassword,
 		ModifiedAt: time.Now().UTC(),
 		ID:         dbUser.ID,
 	})
 
 	if err != nil {
-		log.Errorln(err)
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Something went wrong"})
-		return
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal("Error caught while closing a transaction: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Something went wrong"})
 		return
 	}
 
