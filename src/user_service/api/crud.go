@@ -72,7 +72,7 @@ func UpdateUserPasswordDB(apiCfg *APIConfig, ctx *gin.Context, params database.U
 	qtx := apiCfg.Queries.WithTx(tx)
 
 	// Update user password
-	_, err = qtx.UpdateUserPassword(ctx, params)
+	err = qtx.UpdateUserPassword(ctx, params)
 
 	if err != nil {
 		log.Errorln("Error caught while updating user password in DB: ", err)

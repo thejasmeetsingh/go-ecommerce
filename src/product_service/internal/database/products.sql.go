@@ -61,7 +61,7 @@ func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) error {
 }
 
 const getProductById = `-- name: GetProductById :one
-SELECT id, created_at, modified_at, creator_id, name, price, description FROM products WHERE id=$1
+SELECT id, created_at, modified_at, creator_id, name, price, description FROM products WHERE id=$1 FOR UPDATE NOWAIT
 `
 
 func (q *Queries) GetProductById(ctx context.Context, id uuid.UUID) (Product, error) {

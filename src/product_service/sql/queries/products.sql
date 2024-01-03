@@ -7,7 +7,7 @@ RETURNING *;
 SELECT id, name, price, description FROM products LIMIT $1 OFFSET $2;
 
 -- name: GetProductById :one
-SELECT * FROM products WHERE id=$1;
+SELECT * FROM products WHERE id=$1 FOR UPDATE NOWAIT;
 
 -- name: UpdateProductDetails :one
 UPDATE products SET modified_at=$1, name=$2, price=$3, description=$4

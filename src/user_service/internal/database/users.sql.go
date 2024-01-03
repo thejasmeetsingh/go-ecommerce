@@ -57,7 +57,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, created_at, modified_at, email, password, name FROM users WHERE email=$1
+SELECT id, created_at, modified_at, email, password, name FROM users WHERE email=$1 FOR UPDATE NOWAIT
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -75,7 +75,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, created_at, modified_at, email, password, name FROM users WHERE id=$1
+SELECT id, created_at, modified_at, email, password, name FROM users WHERE id=$1 FOR UPDATE NOWAIT
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
@@ -124,10 +124,9 @@ func (q *Queries) UpdateUserDetails(ctx context.Context, arg UpdateUserDetailsPa
 	return i, err
 }
 
-const updateUserPassword = `-- name: UpdateUserPassword :one
+const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users SET password=$1, modified_at=$2
 WHERE id=$3
-RETURNING id, created_at, modified_at, email, password, name
 `
 
 type UpdateUserPasswordParams struct {
@@ -136,16 +135,7 @@ type UpdateUserPasswordParams struct {
 	ID         uuid.UUID
 }
 
-func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUserPassword, arg.Password, arg.ModifiedAt, arg.ID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.ModifiedAt,
-		&i.Email,
-		&i.Password,
-		&i.Name,
-	)
-	return i, err
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.Password, arg.ModifiedAt, arg.ID)
+	return err
 }
