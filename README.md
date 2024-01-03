@@ -19,6 +19,9 @@ This is a simple e-commerce project developed using Golang and the Gin framework
 
 ## Architecture Overview
 
+Below diagram depict the architecture of each service:
+![](./assets/single-service-arch.png)
+
 ### Microservices:
 - Adopts a microservices architecture for modularity and scalability.
 
