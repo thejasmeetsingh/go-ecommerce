@@ -1,4 +1,4 @@
-# E-Commerce Microservices Project
+# E-Commerce
 This is a simple e-commerce project developed using Golang and the Gin framework, embracing a microservices architecture. The system is composed of three microservices:
 
 1. User Service:
