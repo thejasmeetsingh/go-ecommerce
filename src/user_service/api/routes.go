@@ -2,7 +2,9 @@ package api
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -14,6 +16,16 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 			"message": "Up and Running!",
 		})
 	})
+
+	// CORS Config
+	engine.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://127.0.0.1", "http://localhost"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
+		AllowHeaders:     []string{"Origin"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           5 * time.Hour,
+	}))
 
 	// Add Rate limiter middleware
 	engine.Use(RateLimiter(apiCfg))
