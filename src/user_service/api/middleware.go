@@ -67,7 +67,7 @@ func JWTAuth(apiCfg *APIConfig) gin.HandlerFunc {
 			log.Errorln("Error caught while retrieving user from cache: ", err)
 
 			// Fetch user by ID from DB
-			dbUser, err := apiCfg.Queries.GetUserById(ctx, userID)
+			dbUser, err := GetUserByIDFromDB(apiCfg, ctx, userID)
 			if err != nil {
 				ctx.JSON(http.StatusForbidden, gin.H{"message": "Something went wrong"})
 				ctx.Abort()
@@ -133,7 +133,7 @@ func RateLimiter(apiCfg *APIConfig) gin.HandlerFunc {
 		// Key is based on the client's IP address
 		key := ctx.ClientIP()
 
-		// Allow only 5 requests per second per IP address
+		// Allow only 10 requests per minute per IP address
 		result, err := limiter.Allow(ctx, key, redis_rate.PerMinute(10))
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal Server Error"})
