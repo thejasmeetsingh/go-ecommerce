@@ -10,13 +10,6 @@ import (
 )
 
 func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
-	// Default route for health check
-	engine.GET("/health-check/", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Up and Running!",
-		})
-	})
-
 	// CORS Config
 	engine.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://127.0.0.1", "http://localhost"},
@@ -26,6 +19,13 @@ func GetRoutes(engine *gin.Engine, apiCfg *APIConfig) {
 		AllowCredentials: true,
 		MaxAge:           5 * time.Hour,
 	}))
+
+	// Default route for health check
+	engine.GET("/health-check/", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Up and Running!",
+		})
+	})
 
 	// Add Rate limiter middleware
 	engine.Use(RateLimiter(apiCfg))
